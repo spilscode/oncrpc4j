@@ -19,15 +19,14 @@
  */
 package org.dcache.oncrpc4j.rpc;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.EOFException;
 import java.net.SocketAddress;
 import java.nio.channels.CompletionHandler;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
@@ -37,7 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class ReplyQueue {
 
-    private final ScheduledThreadPoolExecutor executorService = new ScheduledThreadPoolExecutor(1, new ThreadFactory() {
+    private final ScheduledExecutorService executorService = new ScheduledThreadPoolExecutor(1, new ThreadFactory() {
         private final AtomicInteger counter = new AtomicInteger();
 
         @Override
@@ -48,10 +47,6 @@ public class ReplyQueue {
         }
     });
     private final ConcurrentMap<Integer, PendingRequest> _queue = new ConcurrentHashMap<>();
-
-    public ReplyQueue() {
-        executorService.setRemoveOnCancelPolicy(true);
-    }
 
     /**
      * Register callback handler for a given xid. The Callback is called when
@@ -149,11 +144,6 @@ public class ReplyQueue {
             cancelTimeout();
             handler.failed(t, null);
         }
-    }
-
-    @VisibleForTesting
-    BlockingQueue<Runnable> getTimeoutQueue() {
-        return executorService.getQueue();
     }
 
     /**

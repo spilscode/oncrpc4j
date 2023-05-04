@@ -150,7 +150,7 @@ public class JrpcgenConst {
      * Dumps the constant as well as its value to <code>System.out</code>.
      */
     public void dump() {
-        System.out.println(identifier + " = " + value);
+        System.out.println("Id:[" +identifier + "] Value:[" + value + "] Enclosure:[" + enclosure + "] depsIdent:[" + getDependencyIdentifier() + "]" );
     }
 
     /**

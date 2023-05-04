@@ -90,7 +90,7 @@ COMMENT_CONTENT=([^*]|\*+[^*/])*
 C_COMPILER_DIRECTIVE="%".*{LINE_TERMINATOR}
 
 
-IDENTIFIER=[a-zA-Z_][a-zA-Z0-9_]*
+IDENTIFIER=[a-zA-Z_][a-zA-Z0-9_+]*
 INTEGER_LITERAL = [1-9][0-9]*|"0x"[0-9A-Fa-f]+|0[0-7]+|0|-[1-9][0-9]*
 
 

@@ -410,7 +410,11 @@ public class jrpcgen {
         //
         // This simple test avoids endless recursions: we already dumped this
         // particular constant in some place, so we should not proceed.
-        //
+        if (debug) {
+            System.out.println("dumpConstantAndDependency handling");
+            c.dump();
+        }
+
         if (c.dontTraverseAnyMore) {
             return;
         }
@@ -421,6 +425,11 @@ public class jrpcgen {
         c.dontTraverseAnyMore = true;
         String dependencyIdentifier = c.getDependencyIdentifier();
         if (dependencyIdentifier != null) {
+           if (debug) {
+               System.out.println("dumpConstantAndDependency:" + dependencyIdentifier );
+           }
+
+
             //
             // There is a dependency, so try to resolve that first. In case
             // we depend on another identifier belonging to the same enclosure,
@@ -431,6 +440,12 @@ public class jrpcgen {
             //
             JrpcgenConst dc = (JrpcgenConst) globalIdentifiers.get(dependencyIdentifier);
             if (dc != null) {
+           if (debug) {
+               System.out.println("globalIdentifiers.get returned obj:");
+               dc.dump();
+           }
+
+
                 if (!c.enclosure.equalsIgnoreCase(dc.enclosure)) {
                     //
                     // In case we depend on a constant which belongs to a
@@ -440,7 +455,12 @@ public class jrpcgen {
                     // Note that this code depends on the "value" starts
                     // with the identifier we depend on (which is currently
                     // the case), so we just need to prepend the enclosure.
-                    //
+            if (debug) {
+               System.out.println("constant from other scope" + c.enclosure + " != " + dc.enclosure);
+           }
+
+                   
+
                     translateConstant(c, declarations, imports, dc.enclosure + "." + c.value);
                     return;
                 }
@@ -458,46 +478,71 @@ public class jrpcgen {
     }
 
     public static void translateConstant(JrpcgenConst constDecl, List<String> declarations, Set<String> imports, String valueOverride) {
-        String rawValue = constDecl.resolveValue();
-        String str = rawValue.toLowerCase(Locale.ROOT);
-
-        //parse the numeric value of the constant
-        BigInteger value;
-        String valueSansPrefix;
-        int radix;
-        boolean hexOrOctal = true;
-        if (str.startsWith("0x")) { //hex
-            valueSansPrefix = rawValue.substring(2);
-            radix = 16;
-            value = new BigInteger(str.substring(2), 16);
-        } else if (str.length() > 1 && str.startsWith("0")) { //octal
-            valueSansPrefix = rawValue.substring(1);
-            radix = 8;
-            value = new BigInteger(str.substring(1), 8);
-        } else { //decimal (possibly negative)
-            hexOrOctal = false;
-            valueSansPrefix = rawValue;
-            radix = 10;
-            value = new BigInteger(str, 10);
+ 
+        if (debug) {
+            System.out.println("translateConstant with override " + valueOverride );
+            constDecl.dump();
         }
 
-        //now figure out what type the constant fits in
-        BigInteger maxLongBound = hexOrOctal ? new BigInteger("FFFFFFFFFFFFFFFF", 16) : BigInteger.valueOf(Long.MAX_VALUE);
-        BigInteger maxIntBound = hexOrOctal ? new BigInteger("FFFFFFFF", 16) : BigInteger.valueOf(Integer.MAX_VALUE);
-        //remember hex and octal constants are unsigned and so positive, so we dont bother fixing up the negative range ends
-        if (value.compareTo(maxLongBound) > 0 || value.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) < 0) {
-            //outside long representation range. use BigInt
-            imports.add("import " + BigInteger.class.getCanonicalName() + ";");
-            String val = valueOverride != null ? valueOverride : "new BigInteger(\"" + valueSansPrefix + "\", " + radix + ")";
-            declarations.add("    public static final BigInteger " + constDecl.identifier + " = " + val + ";");
-        } else if (value.compareTo(maxIntBound) > 0 || value.compareTo(BigInteger.valueOf(Integer.MIN_VALUE)) < 0) {
-            //outside int range, use long
-            String val = valueOverride != null ? valueOverride : rawValue + "L";
-            declarations.add("    public static final long " + constDecl.identifier + " = " + val + ";");
-        } else {
-            //default to int
-            String val = valueOverride != null ? valueOverride : rawValue;
-            declarations.add("    public static final int " + constDecl.identifier + " = " + val + ";");
+       try
+        {
+            String rawValue = constDecl.resolveValue();
+            String str = rawValue.toLowerCase(Locale.ROOT);
+            // enums maybe expressed in a string for java to compile 
+ 
+            //parse the numeric value of the constant
+            BigInteger value;
+            String valueSansPrefix;
+            int radix;
+            boolean hexOrOctal = true;
+            if (str.startsWith("0x")) { //hex
+                valueSansPrefix = rawValue.substring(2);
+                radix = 16;
+                value = new BigInteger(str.substring(2), 16);
+            } else if (str.length() > 1 && str.startsWith("0")) { //octal
+                valueSansPrefix = rawValue.substring(1);
+                radix = 8;
+                value = new BigInteger(str.substring(1), 8);
+            } else { //decimal (possibly negative)
+                hexOrOctal = false;
+                valueSansPrefix = rawValue;
+                radix = 10;
+                value = new BigInteger(str, 10);
+            }
+
+            //now figure out what type the constant fits in
+            BigInteger maxLongBound = hexOrOctal ? new BigInteger("FFFFFFFFFFFFFFFF", 16) : BigInteger.valueOf(Long.MAX_VALUE);
+            BigInteger maxIntBound = hexOrOctal ? new BigInteger("FFFFFFFF", 16) : BigInteger.valueOf(Integer.MAX_VALUE);
+            //remember hex and octal constants are unsigned and so positive, so we dont bother fixing up the negative range ends
+            if (value.compareTo(maxLongBound) > 0 || value.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) < 0) 
+            {
+                //outside long representation range. use BigInt
+                imports.add("import " + BigInteger.class.getCanonicalName() + ";");
+                String val = valueOverride != null ? valueOverride : "new BigInteger(\"" + valueSansPrefix + "\", " + radix + ")";
+                declarations.add("    public static final BigInteger " + constDecl.identifier + " = " + val + ";");
+            } else if (value.compareTo(maxIntBound) > 0 || value.compareTo(BigInteger.valueOf(Integer.MIN_VALUE)) < 0) {
+                //outside int range, use long
+                String val = valueOverride != null ? valueOverride : rawValue + "L";
+                declarations.add("    public static final long " + constDecl.identifier + " = " + val + ";");
+            } else {
+                //default to int
+                String val = valueOverride != null ? valueOverride : rawValue;
+                declarations.add("    public static final int " + constDecl.identifier + " = " + val + ";");
+            }
+        }
+        catch (Exception e)
+        {
+            // perhaps check we're in an enum !
+            // adopt the resolveValue if the override is null
+            if(valueOverride != null)
+            {
+                declarations.add("    public static final int " + constDecl.identifier + " = " + valueOverride + ";");
+            }
+            else
+            {
+                String val = constDecl.resolveValue();
+                declarations.add("    public static final int " + constDecl.identifier + " = " + val + ";");
+            }
         }
     }
 
